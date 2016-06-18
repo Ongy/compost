@@ -6,6 +6,7 @@
 #include <wayland-util.h>
 #include <wayland-client-core.h>
 #include <string.h>
+#include <signal.h>
 
 #include "wlsignals.h"
 #include "xdg-shell.h"
@@ -82,8 +83,28 @@ terminate_binding(struct weston_keyboard *keyboard, uint32_t time,
 	struct weston_compositor *compositor = data;
 	(void) keyboard; (void) time; (void) key;
 
-	print_backtrace();
 	wl_display_terminate(compositor->wl_display);
+}
+
+static void
+on_signal(int s, siginfo_t *siginfo, void *context)
+{
+	(void) s; (void) siginfo; (void) context;
+	print_backtrace();
+
+	compost_shell.ec->backend->restore(compost_shell.ec);
+}
+
+static void
+catch_signals(void)
+{
+	struct sigaction action;
+
+	action.sa_flags = SA_SIGINFO | SA_RESETHAND;
+	action.sa_sigaction = on_signal;
+
+	sigaction(SIGSEGV, &action, NULL);
+	sigaction(SIGABRT, &action, NULL);
 }
 
 
@@ -233,6 +254,8 @@ main(int argc, char **argv)
 	(void) argc; (void) argv;
 
 	weston_log_set_handler(compost_log, compost_log_continue);
+
+	catch_signals();
 
 	display = wl_display_create();
 	sock_name = wl_display_add_socket_auto(display);
