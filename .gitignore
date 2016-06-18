@@ -32,5 +32,10 @@
 *.dSYM/
 *.su
 
+# vim
+*.swp
+
 # Custom repo stuff
 compost
+include/xdg-shell-server-protocol.h
+src/xdg-shell-server-protocol.c

@@ -1,5 +1,5 @@
 TARGET=compost
-LDFLAGS=-lweston -lwayland-server -lpixman-1
+LDFLAGS=-lweston -lwayland-server -lpixman-1 -lunwind -ldl
 CFLAGS=-fdiagnostics-color=auto -Wall -Wextra -ggdb3
 CFLAGS+=-I/usr/include/pixman-1 -Iinclude
 

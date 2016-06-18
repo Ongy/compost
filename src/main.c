@@ -5,14 +5,75 @@
 
 #include <wayland-util.h>
 #include <wayland-client-core.h>
-
 #include <string.h>
 
 #include "wlsignals.h"
 #include "xdg-shell.h"
 #include "compost.h"
 
+#define __USE_GNU
+#include <dlfcn.h>
+#undef __USE_GNU
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+
 struct compost_shell compost_shell;
+
+static void
+print_backtrace(void)
+{
+	unw_cursor_t cursor;
+	unw_context_t context;
+	unw_word_t off;
+	unw_proc_info_t pip;
+	int ret, i = 0;
+	char procname[256];
+	const char *filename;
+	Dl_info dlinfo;
+
+	pip.unwind_info = NULL;
+	ret = unw_getcontext(&context);
+	if (ret) {
+		weston_log("unw_getcontext: %d\n", ret);
+		return;
+	}
+
+	ret = unw_init_local(&cursor, &context);
+	if (ret) {
+		weston_log("unw_init_local: %d\n", ret);
+		return;
+	}
+
+	ret = unw_step(&cursor);
+	while (ret > 0) {
+		ret = unw_get_proc_info(&cursor, &pip);
+		if (ret) {
+			weston_log("unw_get_proc_info: %d\n", ret);
+			break;
+		}
+
+		ret = unw_get_proc_name(&cursor, procname, 256, &off);
+		if (ret && ret != -UNW_ENOMEM) {
+			if (ret != -UNW_EUNSPEC)
+				weston_log("unw_get_proc_name: %d\n", ret);
+			procname[0] = '?';
+			procname[1] = 0;
+		}
+
+		if (dladdr((void *)(pip.start_ip + off), &dlinfo) && dlinfo.dli_fname &&
+		    *dlinfo.dli_fname)
+			filename = dlinfo.dli_fname;
+		else
+			filename = "?";
+
+		weston_log("%u: %s (%s%s+0x%x) [%p]\n", i++, filename, procname,
+			   ret == -UNW_ENOMEM ? "..." : "", (int)off, (void *)(pip.start_ip + off));
+
+		ret = unw_step(&cursor);
+		if (ret < 0)
+			weston_log("unw_step: %d\n", ret);
+	}
+}
 
 static void
 terminate_binding(struct weston_keyboard *keyboard, uint32_t time,
@@ -21,6 +82,7 @@ terminate_binding(struct weston_keyboard *keyboard, uint32_t time,
 	struct weston_compositor *compositor = data;
 	(void) keyboard; (void) time; (void) key;
 
+	print_backtrace();
 	wl_display_terminate(compositor->wl_display);
 }
 
