@@ -182,7 +182,7 @@ configure_output(struct weston_compositor *ec, bool use_current_mode,
                  const char *name,
                  struct weston_drm_backend_output_config *output_config)
 {
-	(void) ec; (void) use_current_mode; (void) name; (void) output_config;
+	(void) ec; (void) use_current_mode; (void) name;
 
 	output_config->base.scale = 1;
 
@@ -294,6 +294,8 @@ main(int argc, char **argv)
 		ret = -1;
 		goto out;
 	}
+
+	ec->vt_switching = 1;
 
 	/* this has to be called at least once */
 	if (weston_compositor_set_xkb_rule_names(ec, &xkb_names) < 0) {
