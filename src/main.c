@@ -183,6 +183,9 @@ configure_output(struct weston_compositor *ec, bool use_current_mode,
                  struct weston_drm_backend_output_config *output_config)
 {
 	(void) ec; (void) use_current_mode; (void) name; (void) output_config;
+
+	output_config->base.scale = 1;
+
 	return WESTON_DRM_BACKEND_OUTPUT_CURRENT;
 }
 
