@@ -175,6 +175,21 @@ choose_default_backend(void)
 	return backend;
 }
 
+static enum weston_drm_backend_output_mode
+configure_output(struct weston_compositor *ec, bool use_current_mode,
+                 const char *name,
+                 struct weston_drm_backend_output_config *output_config)
+{
+	(void) ec; (void) use_current_mode; (void) name; (void) output_config;
+	return WESTON_DRM_BACKEND_OUTPUT_CURRENT;
+}
+
+static void
+configure_device(struct weston_compositor *ec, struct libinput_device *device)
+{
+	(void) ec; (void) device;
+}
+
 static int
 load_drm_backend(struct weston_compositor *ec)
 {
@@ -182,9 +197,12 @@ load_drm_backend(struct weston_compositor *ec)
 
 	memset(&config, 0, sizeof(config));
 
+	config.configure_output = configure_output;
+	config.configure_device = configure_device;
+
 	config.base.struct_version = WESTON_DRM_BACKEND_CONFIG_VERSION;
 	/* This tells libweston to use it's on default values */
-	config.base.struct_size = sizeof(struct weston_backend_config);
+	config.base.struct_size = sizeof(struct weston_drm_backend_config);
 
 	return weston_compositor_load_backend(ec, WESTON_BACKEND_DRM,
 	                                      &config.base);
