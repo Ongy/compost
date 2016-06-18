@@ -93,6 +93,8 @@ on_signal(int s, siginfo_t *siginfo, void *context)
 	print_backtrace();
 
 	compost_shell.ec->backend->restore(compost_shell.ec);
+
+	raise(SIGTRAP);
 }
 
 static void
