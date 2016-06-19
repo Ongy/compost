@@ -86,19 +86,20 @@ terminate_binding(struct weston_keyboard *keyboard, uint32_t time,
 	wl_display_terminate(compositor->wl_display);
 }
 
+static struct weston_compositor *segv_comp;
 static void
 on_signal(int s, siginfo_t *siginfo, void *context)
 {
 	(void) s; (void) siginfo; (void) context;
 	print_backtrace();
 
-	compost_shell.ec->backend->restore(compost_shell.ec);
+	segv_comp->backend->restore(segv_comp);
 
 	raise(SIGTRAP);
 }
 
 static void
-catch_signals(void)
+catch_signals()
 {
 	struct sigaction action;
 
@@ -111,14 +112,14 @@ catch_signals(void)
 
 
 static int
-load_shell(struct weston_compositor *ec)
+set_background(struct weston_compositor *ec, struct compost_shell *shell)
 {
 	struct weston_output *out;
 	struct weston_surface *background;
 	struct weston_view *bview;
 
-	compost_shell.ec = ec;
-	weston_layer_init(&compost_shell.default_layer, &ec->cursor_layer.link);
+	shell->ec = ec;
+	weston_layer_init(&shell->default_layer, &ec->cursor_layer.link);
 	background = weston_surface_create(ec);
 	weston_surface_set_color(background, 0.5, 0.5, 0.5, 1.0);
 
@@ -126,8 +127,7 @@ load_shell(struct weston_compositor *ec)
 
 	out->width = 1280;
 	out->height = 720;
-	weston_surface_set_size(background,
-	                        out->width, out->height);
+	weston_surface_set_size(background, out->width, out->height);
 	pixman_region32_fini(&background->opaque);
 	pixman_region32_init_rect(&background->opaque,
 	                          0, 0, /* position */
@@ -137,7 +137,7 @@ load_shell(struct weston_compositor *ec)
 	bview = weston_view_create(background);
 	weston_view_set_position(bview, 0, 0);
 	background->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&compost_shell.default_layer.view_list,
+	weston_layer_entry_insert(&shell->default_layer.view_list,
 	                          &bview->layer_link);
 
 	weston_compositor_add_key_binding(ec, KEY_BACKSPACE,
@@ -267,6 +267,7 @@ int
 main(int argc, char **argv)
 {
 	const char *sock_name;
+	struct compost_shell *shell;
 	int ret = 0;
 	struct xkb_rule_names xkb_names = { 0 };
 	struct wl_display *display = NULL;
@@ -287,13 +288,13 @@ main(int argc, char **argv)
 	/* set the environment for children */
 	setenv("WAYLAND_DISPLAY", sock_name, 1);
 
-	backend = choose_default_backend();
-
 	if((ec = weston_compositor_create(display, NULL)) == NULL) {
 		weston_log("fatal: failed to create compositor\n");
 		ret = -1;
 		goto out;
 	}
+
+	segv_comp = ec;
 
 	ec->vt_switching = 1;
 
@@ -310,19 +311,22 @@ main(int argc, char **argv)
 		goto out;
 	}
 
+	backend = choose_default_backend();
 	if (load_backend(ec, backend) < 0) {
 		weston_log("fatal: failed to create compositor backend\n");
 		ret = -1;
 		goto out;
 	}
 
-	if (load_shell(ec) < 0) {
+	shell = malloc(sizeof(*shell));
+
+	if (set_background(ec, shell) < 0) {
 		weston_log("fatal: failed to load shell\n");
 		ret = -1;
 		goto out;
 	}
 
-	if (compost_bind_xdg_shell(display) < 0) {
+	if (compost_bind_xdg_shell(display, shell) < 0) {
 		weston_log("fatal: failed to load xdg_shell\n");
 		ret = -1;
 		goto out;

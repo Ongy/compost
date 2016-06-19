@@ -51,12 +51,13 @@ xdg_popup_delete(struct wl_resource *resource)
 struct compost_xdg_popup *
 xdg_popup(struct wl_client *client, uint32_t id,
           struct weston_surface *surface,
-          int32_t x, int32_t y)
+          int32_t x, int32_t y,
+	  struct compost_shell *shell)
 {
 	struct weston_output *output;
 	struct compost_xdg_popup *xdg_popup;
 
-	output = wl_container_of(compost_shell.ec->output_list.next,
+	output = wl_container_of(shell->ec->output_list.next,
 	                         output, link);
 
 	xdg_popup = malloc(sizeof(*xdg_popup));
@@ -89,7 +90,7 @@ xdg_popup(struct wl_client *client, uint32_t id,
 
 	weston_view_set_position(xdg_popup->view, x, y);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&compost_shell.default_layer.view_list,
+	weston_layer_entry_insert(&shell->default_layer.view_list,
 	                          &xdg_popup->view->layer_link);
 
 	weston_view_geometry_dirty(xdg_popup->view);

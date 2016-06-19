@@ -5,6 +5,7 @@
 
 #include "xdg-shell-server-protocol.h"
 #include "xdg-surface.h"
+#include "xdg-shell.h"
 #include "compost.h"
 
 const struct xdg_surface_interface xdg_surface_implementation;
@@ -95,7 +96,7 @@ shell_surface_configure(struct weston_surface *s, int32_t x, int32_t y)
 	(void) x; (void) y;
 	weston_log("call %s\n", __PRETTY_FUNCTION__);
 
-	wl_list_for_each(seat, &compost_shell.ec->seat_list, link)
+	wl_list_for_each(seat, &s->compositor->seat_list, link)
 		weston_surface_activate(s, seat);
 
 	if (s->output != NULL)
@@ -227,23 +228,21 @@ xdg_surface_set_minimized(struct wl_client *client,
 
 struct compost_xdg_surface *
 compost_get_xdg_surface(struct wl_client *client,
-                        struct compost_xdg_shell *shell,
+                        struct compost_shell *shell,
                         uint32_t id,
                         struct weston_surface *surface)
 {
 	struct weston_output *output;
 	struct compost_xdg_surface *xdg_surface;
 	struct wl_array array;
-	(void) shell;
 
-	output = wl_container_of(compost_shell.ec->output_list.next,
+	output = wl_container_of(shell->ec->output_list.next,
 	                         output, link);
 	surface->output = output;
 
 	xdg_surface = malloc(sizeof(*xdg_surface));
 
 	xdg_surface->client = client;
-	//xdg_surface->shell = shell;
 	xdg_surface->id = id;
 	xdg_surface->surface = surface;
 
@@ -266,7 +265,7 @@ compost_get_xdg_surface(struct wl_client *client,
 	xdg_surface->view = weston_view_create(surface);
 	weston_view_set_position(xdg_surface->view, 0, 0);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&compost_shell.default_layer.view_list,
+	weston_layer_entry_insert(&shell->default_layer.view_list,
 	                          &xdg_surface->view->layer_link);
 
 	wl_array_init(&array);

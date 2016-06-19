@@ -4,17 +4,18 @@
 #include <assert.h>
 
 #include "xdg-shell-server-protocol.h"
+#include "xdg-shell.h"
 #include "xdg-surface.h"
 #include "xdg-popup.h"
 
 static struct xdg_shell_interface xdg_shell_implementation;
 
 struct compost_xdg_shell {
-	struct wl_client *client;
-	uint32_t id;
+	struct compost_shell *shell;
 
 	struct wl_list surfaces;
 };
+
 
 static void
 xdg_shell_delete(struct wl_resource *resource)
@@ -32,29 +33,25 @@ bind_xdg_shell(struct wl_client *client, void *data,
 {
 	struct wl_resource *resource;
 	struct compost_xdg_shell *shell;
-	/* as long as it's unstable it's alwasy version 1 and data = NULL*/
+	/* as long as it's unstable it's alwasy version 1*/
 	assert(version == 1);
-	assert(data == NULL);
 
 
 	shell = malloc(sizeof(*shell));
-	shell->client = client;
-	shell->id = id;
+	shell->shell = (struct compost_shell *)data;
 
 	wl_list_init(&shell->surfaces);
 
 	resource = wl_resource_create(client, &xdg_shell_interface, 1, id);
 
-	wl_resource_set_implementation(resource,
-	                               &xdg_shell_implementation,
-	                               shell,
-	                               &xdg_shell_delete);
+	wl_resource_set_implementation(resource, &xdg_shell_implementation,
+	                               shell, &xdg_shell_delete);
 }
 
 int
-compost_bind_xdg_shell(struct wl_display *dpy)
+compost_bind_xdg_shell(struct wl_display *dpy, struct compost_shell *shell)
 {
-	wl_global_create(dpy, &xdg_shell_interface, 1, NULL, bind_xdg_shell);
+	wl_global_create(dpy, &xdg_shell_interface, 1, shell, bind_xdg_shell);
 	return 0;
 }
 
@@ -92,7 +89,7 @@ compost_xdg_get_xdg_surface(struct wl_client *client,
 			wl_resource_get_user_data(resource);
 	surface = (struct weston_surface *)
 			wl_resource_get_user_data(surface_resource);
-	xdg_surface = compost_get_xdg_surface(client, shell, id, surface);
+	xdg_surface = compost_get_xdg_surface(client, shell->shell, id, surface);
 
 	add_compost_xdg_surface_to_list(&shell->surfaces, xdg_surface);
 
@@ -109,13 +106,16 @@ compost_xdg_get_xdg_popup(struct wl_client *client,
                           uint32_t serial, int32_t x, int32_t y)
 {
 	struct weston_surface *surface;
+	struct compost_xdg_shell *shell;
 	(void) parent_resource; (void) seat_resource;
-	(void) serial; (void) resource;
+	(void) serial;
 
 	surface = (struct weston_surface *)
 			wl_resource_get_user_data(surface_resource);
+	shell = (struct compost_xdg_shell *)
+			wl_resource_get_user_data(resource);
 
-	xdg_popup(client, id, surface, x, y);
+	xdg_popup(client, id, surface, x, y, shell->shell);
 }
 
 static void
