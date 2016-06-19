@@ -20,6 +20,7 @@
 
 struct compost_shell compost_shell;
 
+static FILE *log_file = NULL;
 static void
 print_backtrace(void)
 {
@@ -151,13 +152,19 @@ set_background(struct weston_compositor *ec, struct compost_shell *shell)
 static int
 compost_log(const char *fmt, va_list ap)
 {
-	return vfprintf(stderr, fmt, ap);
+	if (log_file)
+		return vfprintf(log_file, fmt, ap);
+	else
+		return vfprintf(stderr, fmt, ap);
 }
 
 static int
 compost_log_continue(const char *fmt, va_list ap)
 {
-	return vfprintf(stderr, fmt, ap);
+	if (log_file)
+		return vfprintf(log_file, fmt, ap);
+	else
+		return vfprintf(stderr, fmt, ap);
 }
 
 /*Get into libweston? */
@@ -202,8 +209,11 @@ load_drm_backend(struct weston_compositor *ec)
 
 	memset(&config, 0, sizeof(config));
 
+	log_file = fopen("/tmp/compost.log", "w+");
+
 	config.configure_output = configure_output;
 	config.configure_device = configure_device;
+	//config.tty = 6;
 
 	config.base.struct_version = WESTON_DRM_BACKEND_CONFIG_VERSION;
 	/* This tells libweston to use it's on default values */
