@@ -125,8 +125,8 @@ set_background(struct weston_compositor *ec, struct compost_shell *shell)
 
 	out = wl_container_of(&ec->output_list.next, out, link);
 
-	out->width = 1280;
-	out->height = 720;
+	//out->width = 1280;
+	//out->height = 720;
 	weston_surface_set_size(background, out->width, out->height);
 	pixman_region32_fini(&background->opaque);
 	pixman_region32_init_rect(&background->opaque,
@@ -217,20 +217,27 @@ load_drm_backend(struct weston_compositor *ec)
 static int
 load_x11_backend(struct weston_compositor *ec)
 {
-	struct weston_x11_backend_output_config out =
-		{ 1280
-		, 720
-		, "X1"
-		, WL_OUTPUT_TRANSFORM_NORMAL
-		, 1
+	struct weston_x11_backend_output_config out[] =
+		{ { 1280
+		  , 720
+		  , "X1"
+		  , WL_OUTPUT_TRANSFORM_NORMAL
+		  , 1
+		  },
+		  { 1280
+		  , 720
+		  , "X2"
+		  , WL_OUTPUT_TRANSFORM_NORMAL
+		  , 1
+		  }
 		};
 	struct weston_x11_backend_config config =
 		{ { 0 }
 		, 0
 		, 0
 		, 0
-		, 1
-		, &out
+		, 2
+		, out
 		};
 
 	config.base.struct_version = WESTON_X11_BACKEND_CONFIG_VERSION;
@@ -319,6 +326,8 @@ main(int argc, char **argv)
 	}
 
 	shell = malloc(sizeof(*shell));
+	/* so we have access to it during notifieres etc. */
+	ec->user_data = shell;
 
 	if (set_background(ec, shell) < 0) {
 		weston_log("fatal: failed to load shell\n");

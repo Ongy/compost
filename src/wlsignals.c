@@ -92,16 +92,23 @@ static struct wl_listener seat_created = { { 0 }, compost_seat_created };
 static void
 compost_output_created(struct wl_listener *listener, void *data)
 {
-	(void) listener; (void) data;
+	struct weston_output *output = (struct weston_output *)data;
+	(void) listener;
+
+
 	weston_log("signal: output_created\n");
+	weston_log("Created output: \"%s\" %dx%d+%dx%d\n", output->name,
+	           output->width, output->height, output->y, output->x);
 }
 static struct wl_listener output_created = { { 0 }, compost_output_created };
 
 static void
 compost_output_destroyed(struct wl_listener *listener, void *data)
 {
-	(void) listener; (void) data;
+	struct weston_output *output = (struct weston_output *)data;
+	(void) listener;
 	weston_log("signal: output_destroyed\n");
+	weston_log("Destroyed output: \"%s\"\n", output->name);
 }
 static struct wl_listener output_destroyed = { { 0 }, compost_output_destroyed };
 

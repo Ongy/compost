@@ -33,8 +33,8 @@ static void
 shell_popup_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
 	(void) x; (void) y;
-	if (s->output != NULL)
-		weston_output_schedule_repaint(s->output);
+//	if (s->output != NULL)
+//		weston_output_schedule_repaint(s->output);
 }
 
 static void
@@ -56,6 +56,7 @@ xdg_popup(struct wl_client *client, uint32_t id,
 {
 	struct weston_output *output;
 	struct compost_xdg_popup *xdg_popup;
+	weston_log("%s\n", __PRETTY_FUNCTION__);
 
 	output = wl_container_of(shell->ec->output_list.next,
 	                         output, link);
