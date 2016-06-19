@@ -21,7 +21,7 @@ static void
 compost_activate(struct wl_listener *listener, void *data)
 {
 	(void) listener; (void) data;
-	weston_log("signal: activate\n");
+	//weston_log("signal: activate\n");
 }
 
 static void

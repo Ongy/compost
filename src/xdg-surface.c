@@ -2,6 +2,7 @@
 #include <wayland-client-core.h>
 #include <wayland-util.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "xdg-shell-server-protocol.h"
 #include "xdg-surface.h"
@@ -9,16 +10,6 @@
 #include "compost.h"
 
 const struct xdg_surface_interface xdg_surface_implementation;
-
-struct compost_xdg_surface {
-	struct wl_list link;
-	struct wl_client *client;
-	uint32_t id;
-	struct weston_surface *surface;
-
-	struct wl_resource *resource;
-	struct weston_view *view;
-};
 
 void
 add_compost_xdg_surface_to_list(struct wl_list *list,
@@ -28,52 +19,6 @@ add_compost_xdg_surface_to_list(struct wl_list *list,
 	wl_list_insert(list, &surface->link);
 }
 
-
-//static void
-//move_grab_focus(struct weston_pointer_grab *grab)
-//{
-//	(void) grab;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-//
-//static void
-//move_grab_motion(struct weston_pointer_grab *grab, uint32_t time,
-//                 struct weston_pointer_motion_event *event)
-//{
-//	(void) grab; (void) time; (void) event;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-//
-//static void
-//move_grab_button(struct weston_pointer_grab *grab,
-//                 uint32_t time, uint32_t button, uint32_t state_w)
-//{
-//	(void) grab; (void) time; (void) button; (void) state_w;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-//
-//static void
-//move_grab_axis(struct weston_pointer_grab *grab, uint32_t time,
-//               struct weston_pointer_axis_event *event)
-//{
-//	(void) grab; (void) time; (void) event;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-//
-//static void
-//move_grab_axis_source(struct weston_pointer_grab *grab, uint32_t source)
-//{
-//	(void) grab; (void) source;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-//
-//static void
-//move_grab_frame(struct weston_pointer_grab *grab)
-//{
-//	(void) grab;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-
 static void
 xdg_surface_move(struct wl_client *client, struct wl_resource *resource,
                  struct wl_resource *seat_resource, uint32_t serial)
@@ -82,22 +27,15 @@ xdg_surface_move(struct wl_client *client, struct wl_resource *resource,
 	weston_log("call %s\n", __PRETTY_FUNCTION__);
 }
 
-//static void
-//move_grab_cancel(struct weston_pointer_grab *grab)
-//{
-//	(void) grab;
-//	weston_log("call %s\n", __PRETTY_FUNCTION__);
-//}
-
 static void
 shell_surface_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
 	struct weston_seat *seat;
 	(void) x; (void) y;
-	weston_log("call %s\n", __PRETTY_FUNCTION__);
+	//weston_log("call %s\n", __PRETTY_FUNCTION__);
 
 	wl_list_for_each(seat, &s->compositor->seat_list, link)
-		weston_surface_activate(s, seat);
+	                 weston_surface_activate(s, seat);
 
 	if (s->output != NULL)
 		weston_output_schedule_repaint(s->output);
@@ -110,6 +48,9 @@ xdg_surface_delete(struct wl_resource *resource)
 	struct compost_xdg_surface *surface =
 		(struct compost_xdg_surface *)
 			wl_resource_get_user_data(resource);
+	weston_log("Deleting surface\n");
+	surface->output->used -= 1;
+	wl_list_remove(&surface->link);
 
 	/* TODO */
 	free(surface);
@@ -232,25 +173,34 @@ compost_get_xdg_surface(struct wl_client *client,
                         uint32_t id,
                         struct weston_surface *surface)
 {
+	int min = INT_MAX;
 	struct weston_output *output;
 	struct compost_xdg_surface *xdg_surface;
 	struct wl_array array;
 	struct compost_output *out;
+	struct compost_output *pos;
 
-	wl_list_for_each(out, &shell->outputs, link) {
-		weston_log("Iterating over output while creating surface\n");
-		if (!out->used)
-			break;
+	wl_list_for_each(pos, &shell->outputs, link) {
+		weston_log("Iterating over output while creating surface: %d\n",
+		           pos->used);
+		if (pos->used < min) {
+			weston_log("Choosing output: %s\n", pos->output->name);
+			out = pos;
+			min = out->used;
+		}
 	}
 
-	if (&out->link == &shell->outputs)
-		out = wl_container_of(shell->outputs.next, out, link);
+	if (&out->link == &shell->outputs) {
+		weston_log("fatal: didn't find a usable output\n");
+	}
 
 	output = out->output;
 	surface->output = output;
 
 	xdg_surface = malloc(sizeof(*xdg_surface));
 
+	xdg_surface->shell = shell;
+	xdg_surface->output = out;
 	xdg_surface->client = client;
 	xdg_surface->id = id;
 	xdg_surface->surface = surface;
@@ -277,7 +227,7 @@ compost_get_xdg_surface(struct wl_client *client,
 	weston_layer_entry_insert(&out->default_layer.view_list,
 	                          &xdg_surface->view->layer_link);
 
-	out->used = 1;
+	out->used += 1;
 	wl_array_init(&array);
 	wl_array_add(&array, sizeof(uint32_t)*2);
 	((uint32_t *)array.data)[0] = XDG_SURFACE_STATE_MAXIMIZED;
@@ -297,6 +247,8 @@ xdg_surface_destroy(struct wl_client *client,
                     struct wl_resource *resource)
 {
 	(void) client;
+	weston_log("Destroying surface\n");
+
 	wl_resource_destroy(resource);
 }
 

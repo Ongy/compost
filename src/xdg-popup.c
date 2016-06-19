@@ -5,6 +5,7 @@
 
 #include "xdg-shell-server-protocol.h"
 #include "xdg-popup.h"
+#include "xdg-surface.h"
 #include "compost.h"
 
 struct compost_xdg_popup {
@@ -22,6 +23,7 @@ static void
 xdg_popup_destroy(struct wl_client *client, struct wl_resource *resource)
 {
 	(void) client;
+	weston_log("%s\n", __PRETTY_FUNCTION__);
 	wl_resource_destroy(resource);
 }
 
@@ -33,6 +35,7 @@ static void
 shell_popup_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
 	(void) x; (void) y; (void) s;
+	weston_log("%s\n", __PRETTY_FUNCTION__);
 }
 
 static void
@@ -41,6 +44,7 @@ xdg_popup_delete(struct wl_resource *resource)
 	struct compost_xdg_popup *popup =
 		(struct compost_xdg_popup *)
 			wl_resource_get_user_data(resource);
+	weston_log("%s\n", __PRETTY_FUNCTION__);
 
 	/* TODO */
 	free(popup);
@@ -50,21 +54,22 @@ struct compost_xdg_popup *
 xdg_popup(struct wl_client *client, uint32_t id,
           struct weston_surface *surface,
           int32_t x, int32_t y,
-	  struct compost_shell *shell)
+	  struct compost_shell *shell,
+	  struct compost_xdg_surface *parent)
 {
-	struct weston_output *output;
+	struct weston_surface *surf = (struct weston_surface *)parent;
 	struct compost_xdg_popup *xdg_popup;
 	struct compost_output *out;
 
 	/* TODO maybe do something more sane than just using first output */
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 
-
-	wl_list_for_each(out, &shell->outputs, link)
-		if (out->output == surface->output)
+	wl_list_for_each(out, &shell->outputs, link) {
+		if (out->output == surf->output) {
+			weston_log("Found fitting output\n");
 			break;
-
-	output = out->output;
+		}
+	}
 
 	xdg_popup = malloc(sizeof(*xdg_popup));
 
@@ -90,9 +95,12 @@ xdg_popup(struct wl_client *client, uint32_t id,
 
 	surface->configure = &shell_popup_configure;
 	surface->configure_private = xdg_popup;
-	surface->output = output;
+	surface->output = out->output;
 
 	xdg_popup->view = weston_view_create(surface);
+	weston_view_set_transform_parent(xdg_popup->view,
+		 ((struct compost_xdg_surface *)surf->configure_private)->view);
+
 
 	weston_view_set_position(xdg_popup->view, x, y);
 	surface->timeline.force_refresh = 1;

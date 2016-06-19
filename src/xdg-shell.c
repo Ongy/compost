@@ -107,15 +107,19 @@ compost_xdg_get_xdg_popup(struct wl_client *client,
 {
 	struct weston_surface *surface;
 	struct compost_xdg_shell *shell;
-	(void) parent_resource; (void) seat_resource;
-	(void) serial;
+	struct compost_xdg_surface *parent;
+	(void) seat_resource; (void) serial;
 
 	surface = (struct weston_surface *)
 			wl_resource_get_user_data(surface_resource);
+	parent = (struct compost_xdg_surface *)
+			wl_resource_get_user_data(parent_resource);
 	shell = (struct compost_xdg_shell *)
 			wl_resource_get_user_data(resource);
 
-	xdg_popup(client, id, surface, x, y, shell->shell);
+	xdg_popup(client, id, surface, x, y, shell->shell, parent);
+
+	weston_log("Created xdg_popup\n");
 }
 
 static void
