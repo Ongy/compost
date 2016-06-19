@@ -235,9 +235,18 @@ compost_get_xdg_surface(struct wl_client *client,
 	struct weston_output *output;
 	struct compost_xdg_surface *xdg_surface;
 	struct wl_array array;
+	struct compost_output *out;
 
-	output = wl_container_of(shell->ec->output_list.next,
-	                         output, link);
+	wl_list_for_each(out, &shell->outputs, link) {
+		weston_log("Iterating over output while creating surface\n");
+		if (!out->used)
+			break;
+	}
+
+	if (&out->link == &shell->outputs)
+		out = wl_container_of(shell->outputs.next, out, link);
+
+	output = out->output;
 	surface->output = output;
 
 	xdg_surface = malloc(sizeof(*xdg_surface));
@@ -263,11 +272,12 @@ compost_get_xdg_surface(struct wl_client *client,
 	surface->configure_private = xdg_surface;
 
 	xdg_surface->view = weston_view_create(surface);
-	weston_view_set_position(xdg_surface->view, 0, 0);
+	weston_view_set_position(xdg_surface->view, output->x, output->y);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&shell->default_layer.view_list,
+	weston_layer_entry_insert(&out->default_layer.view_list,
 	                          &xdg_surface->view->layer_link);
 
+	out->used = 1;
 	wl_array_init(&array);
 	wl_array_add(&array, sizeof(uint32_t)*2);
 	((uint32_t *)array.data)[0] = XDG_SURFACE_STATE_MAXIMIZED;

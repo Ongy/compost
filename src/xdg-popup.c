@@ -32,9 +32,7 @@ static const struct xdg_popup_interface xdg_popup_implementation = {
 static void
 shell_popup_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
-	(void) x; (void) y;
-//	if (s->output != NULL)
-//		weston_output_schedule_repaint(s->output);
+	(void) x; (void) y; (void) s;
 }
 
 static void
@@ -56,10 +54,17 @@ xdg_popup(struct wl_client *client, uint32_t id,
 {
 	struct weston_output *output;
 	struct compost_xdg_popup *xdg_popup;
+	struct compost_output *out;
+
+	/* TODO maybe do something more sane than just using first output */
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 
-	output = wl_container_of(shell->ec->output_list.next,
-	                         output, link);
+
+	wl_list_for_each(out, &shell->outputs, link)
+		if (out->output == surface->output)
+			break;
+
+	output = out->output;
 
 	xdg_popup = malloc(sizeof(*xdg_popup));
 
@@ -91,7 +96,7 @@ xdg_popup(struct wl_client *client, uint32_t id,
 
 	weston_view_set_position(xdg_popup->view, x, y);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&shell->default_layer.view_list,
+	weston_layer_entry_insert(&out->default_layer.view_list,
 	                          &xdg_popup->view->layer_link);
 
 	weston_view_geometry_dirty(xdg_popup->view);

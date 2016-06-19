@@ -113,38 +113,13 @@ catch_signals()
 
 
 static int
-set_background(struct weston_compositor *ec, struct compost_shell *shell)
+setup_shell(struct weston_compositor *ec, struct compost_shell *shell)
 {
-	struct weston_output *out;
-	struct weston_surface *background;
-	struct weston_view *bview;
-
 	shell->ec = ec;
-	weston_layer_init(&shell->default_layer, &ec->cursor_layer.link);
-	background = weston_surface_create(ec);
-	weston_surface_set_color(background, 0.5, 0.5, 0.5, 1.0);
-
-	out = wl_container_of(&ec->output_list.next, out, link);
-
-	//out->width = 1280;
-	//out->height = 720;
-	weston_surface_set_size(background, out->width, out->height);
-	pixman_region32_fini(&background->opaque);
-	pixman_region32_init_rect(&background->opaque,
-	                          0, 0, /* position */
-	                          out->width, out->height);
-	weston_surface_damage(background);
-
-	bview = weston_view_create(background);
-	weston_view_set_position(bview, 0, 0);
-	background->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&shell->default_layer.view_list,
-	                          &bview->layer_link);
-
 	weston_compositor_add_key_binding(ec, KEY_BACKSPACE,
 	                                  MODIFIER_CTRL | MODIFIER_ALT,
 	                                  &terminate_binding, ec);
-	weston_log("set up default view: %d %d\n", out->width, out->height);
+	wl_list_init(&shell->outputs);
 	return 0;
 }
 
@@ -294,6 +269,9 @@ main(int argc, char **argv)
 	/* TODO maybe some args parsing? */
 	(void) argc; (void) argv;
 
+	/* Allocate our shell right in the beginning */
+	shell = malloc(sizeof(*shell));
+
 	weston_log_set_handler(compost_log, compost_log_continue);
 
 	catch_signals();
@@ -322,7 +300,13 @@ main(int argc, char **argv)
 		goto out;
 	}
 
-	if (compost_bind_signals(ec) < 0) {
+	if (setup_shell(ec, shell) < 0) {
+		weston_log("fatal: failed to load shell\n");
+		ret = -1;
+		goto out;
+	}
+
+	if (compost_bind_signals(ec, shell) < 0) {
 		weston_log("fatal: something went wrong while binding singals\n");
 		ret = -1;
 		goto out;
@@ -335,15 +319,8 @@ main(int argc, char **argv)
 		goto out;
 	}
 
-	shell = malloc(sizeof(*shell));
-	/* so we have access to it during notifieres etc. */
 	ec->user_data = shell;
 
-	if (set_background(ec, shell) < 0) {
-		weston_log("fatal: failed to load shell\n");
-		ret = -1;
-		goto out;
-	}
 
 	if (compost_bind_xdg_shell(display, shell) < 0) {
 		weston_log("fatal: failed to load xdg_shell\n");
