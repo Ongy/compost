@@ -16,7 +16,6 @@ struct compost_xdg_shell {
 	struct wl_list surfaces;
 };
 
-
 static void
 xdg_shell_delete(struct wl_resource *resource)
 {
@@ -24,7 +23,15 @@ xdg_shell_delete(struct wl_resource *resource)
 
 	shell = (struct compost_xdg_shell *)
 			wl_resource_get_user_data(resource);
+
+	/* If we are freed before our surfaces, the link_remove in the surfaces
+	 * will try to write into freed memory otherwise
+	 */
+	wl_list_remove(&shell->surfaces);
+
 	free(shell);
+
+	weston_log("Deleted xdg-shell\n");
 }
 
 static void
@@ -33,7 +40,7 @@ bind_xdg_shell(struct wl_client *client, void *data,
 {
 	struct wl_resource *resource;
 	struct compost_xdg_shell *shell;
-	/* as long as it's unstable it's alwasy version 1*/
+	/* as long as it's unstable it's always version 1*/
 	assert(version == 1);
 
 
@@ -55,11 +62,25 @@ compost_bind_xdg_shell(struct wl_display *dpy, struct compost_shell *shell)
 	return 0;
 }
 
+/* The only thing we have to do, is destroy
+ *
+ */
 static void
 compost_xdg_destroy(struct wl_client *client, struct wl_resource *resource)
 {
+	struct compost_xdg_shell *shell;
 	(void) client;
-	(void) resource;
+
+	shell = wl_resource_get_user_data(resource);
+
+	if (!wl_list_empty(&shell->surfaces)) {
+		wl_resource_post_error(resource,
+		                       XDG_SHELL_ERROR_DEFUNCT_SURFACES,
+		                       "XDG-SHELL destroyed while surfaces existed\n");
+		weston_log("Child destroyed xdg-shell while children existed\n");
+	}
+
+	wl_resource_destroy(resource);
 	weston_log("call %s\n", __PRETTY_FUNCTION__);
 }
 

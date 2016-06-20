@@ -37,6 +37,14 @@ shell_surface_configure(struct weston_surface *s, int32_t x, int32_t y)
 		weston_output_schedule_repaint(s->output);
 }
 
+struct compost_xdg_surface *
+weston_to_compost_xdg_surface(struct weston_surface *surface)
+{
+	if (surface->configure == shell_surface_configure)
+		return surface->configure_private;
+	return NULL;
+}
+
 
 static void
 xdg_surface_delete(struct wl_resource *resource)
@@ -47,6 +55,10 @@ xdg_surface_delete(struct wl_resource *resource)
 	weston_log("Deleting surface\n");
 	surface->output->used -= 1;
 	wl_list_remove(&surface->link);
+	/* So the poopups don't write into freed memory when removing
+	 * themselves from the list
+	 */
+	wl_list_remove(&surface->popups);
 
 	/* TODO */
 	free(surface);
@@ -197,18 +209,20 @@ compost_get_xdg_surface(struct wl_client *client,
 
 	xdg_surface->shell = shell;
 	xdg_surface->output = out;
-	xdg_surface->client = client;
 	xdg_surface->id = id;
 	xdg_surface->surface = surface;
+	wl_list_init(&xdg_surface->popups);
 
-	xdg_surface->resource = wl_resource_create(client, &xdg_surface_interface,
-	                                       1, id);
+	xdg_surface->resource = wl_resource_create(client,
+	                                           &xdg_surface_interface,
+	                                           1, id);
 	wl_resource_set_implementation(xdg_surface->resource,
 	                               &xdg_surface_implementation,
 	                               xdg_surface, xdg_surface_delete);
 
 	if (weston_surface_set_role(surface, "xdg_surface",
-	    xdg_surface->resource, XDG_SHELL_ERROR_ROLE) < 0) {
+	                            xdg_surface->resource,
+	                            XDG_SHELL_ERROR_ROLE) < 0) {
 		weston_log("TODO");
 		return NULL;
 	}
@@ -241,8 +255,19 @@ static void
 xdg_surface_destroy(struct wl_client *client,
                     struct wl_resource *resource)
 {
+	struct compost_xdg_surface *surface;
 	(void) client;
+
+	surface = wl_resource_get_user_data(resource);
+
 	weston_log("Destroying surface\n");
+	if (!wl_list_empty(&surface->popups)) {
+		wl_resource_post_error(resource,
+		                       XDG_SHELL_ERROR_DEFUNCT_SURFACES,
+		                       "XDG-SURFACE destroyed while popup existed\n");
+		weston_log("Child destroyed xdg-surface while children existed\n");
+	}
+
 
 	wl_resource_destroy(resource);
 }

@@ -9,8 +9,10 @@
 #include "compost.h"
 
 struct compost_xdg_popup {
-	struct wl_client *client;
+	struct wl_list link;
 	uint32_t id;
+	struct compost_xdg_surface *parent;
+	struct wl_listener parent_listener;
 	struct weston_surface *surface;
 
 	struct wl_resource *resource;
@@ -20,9 +22,31 @@ struct compost_xdg_popup {
 };
 
 static void
+on_parent_destroy(struct wl_listener *listener, void *data)
+{
+	struct compost_xdg_popup *popup;
+	(void) data;
+
+	popup = wl_container_of(listener, popup, parent_listener);
+
+	popup->parent = NULL;
+}
+
+static void
 xdg_popup_destroy(struct wl_client *client, struct wl_resource *resource)
 {
+	struct compost_xdg_popup *popup;
 	(void) client;
+
+	popup = wl_resource_get_user_data(resource);
+
+	weston_log("Destroying popup\n");
+	if (&popup->link != popup->parent->popups.next) {
+		wl_resource_post_error(resource,
+		                       XDG_SHELL_ERROR_DEFUNCT_SURFACES,
+		                       "XDG-POPUP destroyed that wasn't the latest\n");
+		weston_log("Child destroyed xdg-popup while newer existed\n");
+	}
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 	wl_resource_destroy(resource);
 }
@@ -32,9 +56,11 @@ static const struct xdg_popup_interface xdg_popup_implementation = {
 };
 
 static void
-shell_popup_configure(struct weston_surface *s, int32_t x, int32_t y)
+compost_popup_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
-	(void) x; (void) y; (void) s;
+	(void) x; (void) y;
+	if (s->output != NULL)
+		weston_output_schedule_repaint(s->output);
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 }
 
@@ -46,7 +72,10 @@ xdg_popup_delete(struct wl_resource *resource)
 			wl_resource_get_user_data(resource);
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 
-	/* TODO */
+	if (popup->parent)
+		wl_list_remove(&popup->parent_listener.link);
+
+	wl_list_remove(&popup->link);
 	free(popup);
 }
 
@@ -63,7 +92,6 @@ xdg_popup(struct wl_client *client, uint32_t id,
 
 	parent = (struct compost_xdg_surface *)surf->configure_private;
 
-	/* TODO maybe do something more sane than just using first output */
 	weston_log("%s\n", __PRETTY_FUNCTION__);
 
 	wl_list_for_each(out, &shell->outputs, link) {
@@ -75,11 +103,15 @@ xdg_popup(struct wl_client *client, uint32_t id,
 
 	xdg_popup = malloc(sizeof(*xdg_popup));
 
-	xdg_popup->client = client;
 	xdg_popup->id = id;
 	xdg_popup->surface = surface;
 	xdg_popup->ox = x;
 	xdg_popup->oy = y;
+	wl_list_insert(&parent->popups, &xdg_popup->link);
+	xdg_popup->parent = parent;
+	xdg_popup->parent_listener.notify = on_parent_destroy;
+	wl_resource_add_destroy_listener(xdg_popup->parent->resource,
+	                                 &xdg_popup->parent_listener);
 
 	xdg_popup->resource = wl_resource_create(client,
 	                                         &xdg_surface_interface,
@@ -90,12 +122,12 @@ xdg_popup(struct wl_client *client, uint32_t id,
 	                               xdg_popup_delete);
 
 	if (weston_surface_set_role(surface, "xdg_popup", xdg_popup->resource,
-	    XDG_SHELL_ERROR_ROLE) < 0) {
+	                            XDG_SHELL_ERROR_ROLE) < 0) {
 		weston_log("TODO\n");
 		return NULL;
 	}
 
-	surface->configure = &shell_popup_configure;
+	surface->configure = &compost_popup_configure;
 	surface->configure_private = xdg_popup;
 	surface->output = out->output;
 
