@@ -122,7 +122,6 @@ set_output_background(struct compost_shell *shell, struct weston_output *out)
 
 	wl_list_insert(&shell->outputs, &c_out->link);
 
-	weston_layer_init(&c_out->default_layer, &ec->cursor_layer.link);
 	background = weston_surface_create(ec);
 	weston_surface_set_color(background, 0.5, 0.5, 0.5, 1.0);
 
@@ -136,7 +135,7 @@ set_output_background(struct compost_shell *shell, struct weston_output *out)
 	bview = weston_view_create(background);
 	weston_view_set_position(bview, out->x, out->y);
 	background->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&c_out->default_layer.view_list,
+	weston_layer_entry_insert(&shell->tiling_layer.view_list,
 	                          &bview->layer_link);
 
 }

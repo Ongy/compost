@@ -55,11 +55,13 @@ xdg_popup(struct wl_client *client, uint32_t id,
           struct weston_surface *surface,
           int32_t x, int32_t y,
 	  struct compost_shell *shell,
-	  struct compost_xdg_surface *parent)
+	  struct weston_surface *surf)
 {
-	struct weston_surface *surf = (struct weston_surface *)parent;
+	struct compost_xdg_surface *parent;
 	struct compost_xdg_popup *xdg_popup;
 	struct compost_output *out;
+
+	parent = (struct compost_xdg_surface *)surf->configure_private;
 
 	/* TODO maybe do something more sane than just using first output */
 	weston_log("%s\n", __PRETTY_FUNCTION__);
@@ -98,13 +100,12 @@ xdg_popup(struct wl_client *client, uint32_t id,
 	surface->output = out->output;
 
 	xdg_popup->view = weston_view_create(surface);
-	weston_view_set_transform_parent(xdg_popup->view,
-		 ((struct compost_xdg_surface *)surf->configure_private)->view);
+	weston_view_set_transform_parent(xdg_popup->view, parent->view);
 
 
 	weston_view_set_position(xdg_popup->view, x, y);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&out->default_layer.view_list,
+	weston_layer_entry_insert(&parent->view->layer_link.layer->view_list,
 	                          &xdg_popup->view->layer_link);
 
 	weston_view_geometry_dirty(xdg_popup->view);

@@ -7,7 +7,6 @@ struct compost_output {
 	struct wl_list link;
 	int used;
 	struct weston_output *output;
-	struct weston_layer default_layer;
 };
 
 struct compost_shell {
@@ -27,6 +26,7 @@ struct compost_shell {
 	struct wl_listener output_moved;
 	struct wl_listener session;
 
+	struct weston_layer tiling_layer;
 	struct wl_list outputs;
 	struct weston_compositor *ec;
 };

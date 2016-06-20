@@ -5,13 +5,12 @@ struct compost_xdg_popup;
 struct wl_client;
 struct weston_surface;
 struct compost_shell;
-struct compost_xdg_surface;
 
 struct compost_xdg_popup *
 xdg_popup(struct wl_client *client, uint32_t id,
           struct weston_surface *surface,
           int32_t x, int32_t y,
           struct compost_shell *shell,
-          struct compost_xdg_surface *parent);
+          struct weston_surface *parent);
 
 #endif /*_COMPOST_XDG_POPUP_H_*/

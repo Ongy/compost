@@ -138,6 +138,7 @@ activate_on_click(struct weston_pointer *pointer, uint32_t time,
 static int
 setup_shell(struct weston_compositor *ec, struct compost_shell *shell)
 {
+	weston_layer_init(&shell->tiling_layer, &ec->cursor_layer.link);
 	shell->ec = ec;
 	weston_compositor_add_key_binding(ec, KEY_BACKSPACE,
 	                                  MODIFIER_CTRL | MODIFIER_ALT,

@@ -219,7 +219,7 @@ compost_get_xdg_surface(struct wl_client *client,
 	xdg_surface->view = weston_view_create(surface);
 	weston_view_set_position(xdg_surface->view, output->x, output->y);
 	surface->timeline.force_refresh = 1;
-	weston_layer_entry_insert(&out->default_layer.view_list,
+	weston_layer_entry_insert(&shell->tiling_layer.view_list,
 	                          &xdg_surface->view->layer_link);
 
 	out->used += 1;
