@@ -111,6 +111,29 @@ catch_signals()
 	sigaction(SIGABRT, &action, NULL);
 }
 
+static void
+activate(struct weston_surface *surface, struct weston_seat *seat)
+{
+	weston_surface_activate(surface, seat);
+}
+
+static void
+activate_binding(struct weston_seat *seat, struct weston_view *focus_view)
+{
+	activate(focus_view->surface, seat);
+}
+
+static void
+activate_on_click(struct weston_pointer *pointer, uint32_t time,
+                  uint32_t button, void *data)
+{
+	(void) time; (void) button; (void) data;
+	if (pointer->grab != &pointer->default_grab)
+		return;
+	if (pointer->focus == NULL)
+		return;
+	activate_binding(pointer->seat, pointer->focus);
+}
 
 static int
 setup_shell(struct weston_compositor *ec, struct compost_shell *shell)
@@ -119,6 +142,9 @@ setup_shell(struct weston_compositor *ec, struct compost_shell *shell)
 	weston_compositor_add_key_binding(ec, KEY_BACKSPACE,
 	                                  MODIFIER_CTRL | MODIFIER_ALT,
 	                                  &terminate_binding, ec);
+	weston_compositor_add_button_binding(ec, BTN_LEFT, 0,
+					     activate_on_click,
+					     shell);
 	wl_list_init(&shell->outputs);
 	return 0;
 }

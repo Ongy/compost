@@ -30,12 +30,8 @@ xdg_surface_move(struct wl_client *client, struct wl_resource *resource,
 static void
 shell_surface_configure(struct weston_surface *s, int32_t x, int32_t y)
 {
-	struct weston_seat *seat;
 	(void) x; (void) y;
-	//weston_log("call %s\n", __PRETTY_FUNCTION__);
-
-	wl_list_for_each(seat, &s->compositor->seat_list, link)
-	                 weston_surface_activate(s, seat);
+	weston_log("call %s\n", __PRETTY_FUNCTION__);
 
 	if (s->output != NULL)
 		weston_output_schedule_repaint(s->output);
@@ -207,7 +203,6 @@ compost_get_xdg_surface(struct wl_client *client,
 
 	xdg_surface->resource = wl_resource_create(client, &xdg_surface_interface,
 	                                       1, id);
-	weston_log("%p", xdg_surface->resource);
 	wl_resource_set_implementation(xdg_surface->resource,
 	                               &xdg_surface_implementation,
 	                               xdg_surface, xdg_surface_delete);

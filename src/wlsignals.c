@@ -21,14 +21,41 @@ static void
 compost_activate(struct wl_listener *listener, void *data)
 {
 	(void) listener; (void) data;
-	//weston_log("signal: activate\n");
+	weston_log("signal: activate\n");
+}
+
+static struct weston_layer *
+get_view_layer(struct weston_view *view)
+{
+	if (view->parent_view)
+		return get_view_layer(view->parent_view);
+	return view->layer_link.layer;
 }
 
 static void
 compost_transform(struct wl_listener *listener, void *data)
 {
-	(void) listener; (void) data;
-	weston_log("signal: transform\n");
+	struct weston_surface *surface = data;
+	struct weston_view *view;
+	struct weston_layer *layer;
+	struct compost_shell *shell;
+
+	shell = wl_container_of(listener, shell, transform);
+
+	wl_list_for_each(view, &surface->views, surface_link) {
+		layer = get_view_layer(view);
+		if (layer == &shell->ec->cursor_layer) {
+			/* since there are quite a few of those, discard them */
+			//weston_log("signal: transform pointer\n");
+			return;
+		}
+		if (layer == &shell->ec->fade_layer) {
+			weston_log("signal: transform fade\n");
+			return;
+		}
+	}
+
+	weston_log("signal: transform: %s %p\n", surface->output->name, data);
 }
 
 static void
@@ -91,6 +118,7 @@ set_output_background(struct compost_shell *shell, struct weston_output *out)
 	c_out = malloc(sizeof(*c_out));
 	c_out->used = 0;
 	c_out->output = out;
+
 
 	wl_list_insert(&shell->outputs, &c_out->link);
 
