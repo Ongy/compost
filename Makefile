@@ -8,7 +8,7 @@ XDG-HEADER=include/xdg-shell-server-protocol.h
 XDG-SOURCE=src/xdg-shell-server-protocol.c
 
 GENERATED=$(XDG-SOURCE)
-OBJECTS=main.o wlsignals.o xdg-shell.o xdg-surface.o xdg-popup.o
+OBJECTS=main.o wlsignals.o xdg-shell.o xdg-surface.o xdg-popup.o pointer.o
 SOBJECTS=$(addprefix src/, $(OBJECTS))
 
 .PHONY: run clean fresh

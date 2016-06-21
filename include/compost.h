@@ -3,6 +3,7 @@
 #include <libweston-0/compositor.h>
 #include <wayland-util.h>
 
+const struct weston_pointer_grab_interface compost_pointer_grab_interface;
 struct compost_output {
 	struct wl_list link;
 	int used;
@@ -30,5 +31,9 @@ struct compost_shell {
 	struct wl_list outputs;
 	struct weston_compositor *ec;
 };
+
+
+void
+compost_activate_binding(struct weston_pointer *pointer);
 
 #endif /*_COMPOST_COMPOST_H_*/

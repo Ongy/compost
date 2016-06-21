@@ -117,10 +117,14 @@ activate(struct weston_surface *surface, struct weston_seat *seat)
 	weston_surface_activate(surface, seat);
 }
 
-static void
-activate_binding(struct weston_seat *seat, struct weston_view *focus_view)
+void
+compost_activate_binding(struct weston_pointer *pointer)
 {
-	activate(focus_view->surface, seat);
+	if (pointer->grab != &pointer->default_grab)
+		return;
+	if (pointer->focus == NULL)
+		return;
+	activate(pointer->focus->surface, pointer->seat);
 }
 
 static void
@@ -128,11 +132,7 @@ activate_on_click(struct weston_pointer *pointer, uint32_t time,
                   uint32_t button, void *data)
 {
 	(void) time; (void) button; (void) data;
-	if (pointer->grab != &pointer->default_grab)
-		return;
-	if (pointer->focus == NULL)
-		return;
-	activate_binding(pointer->seat, pointer->focus);
+	compost_activate_binding(pointer);
 }
 
 static int
@@ -310,14 +310,15 @@ main(int argc, char **argv)
 	/* set the environment for children */
 	setenv("WAYLAND_DISPLAY", sock_name, 1);
 
-	if((ec = weston_compositor_create(display, NULL)) == NULL) {
+	if((ec = weston_compositor_create(display, shell)) == NULL) {
 		weston_log("fatal: failed to create compositor\n");
 		ret = -1;
 		goto out;
 	}
 
 	segv_comp = ec;
-
+	weston_compositor_set_default_pointer_grab(ec,
+	                                      &compost_pointer_grab_interface);
 	ec->vt_switching = 1;
 
 	/* this has to be called at least once */
@@ -346,9 +347,6 @@ main(int argc, char **argv)
 		goto out;
 	}
 
-	ec->user_data = shell;
-
-
 	if (compost_bind_xdg_shell(display, shell) < 0) {
 		weston_log("fatal: failed to load xdg_shell\n");
 		ret = -1;
@@ -358,6 +356,7 @@ main(int argc, char **argv)
 	ec->exit = handle_exit;
 
 	weston_compositor_wake(ec);
+	weston_log("Default grab: %p\n", ec->default_pointer_grab);
 	wl_display_run(display);
 
 	/* Allow for setting return exit code after
